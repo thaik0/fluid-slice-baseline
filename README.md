@@ -228,3 +228,39 @@ normalization, time split, sampling schedule and compute. Obtain permission
 before recording or publishing unpublished details. A model-size anecdote is
 not evidence of the right capacity, and this baseline makes no reproduction
 claim. Keep any private meeting notes outside version control.
+
+## Generate a provisional manifest from an inventory
+
+`build_manifest.py` accepts explicit chronological time windows, snapshot counts,
+guard gap, spacing, and z planes. Example using synthetic time coordinates:
+
+```bash
+python3 build_manifest.py --inventory runs/pilot/inventory.json \
+  --out runs/pilot/manifest.json \
+  --train-window 0 60 --val-window 70 90 --test-window 100 120 \
+  --train-count 128 --val-count 32 --test-count 32 \
+  --gap 10 --spacing 0.01 --planes 0 96 192 288
+```
+
+Replace all numeric choices with your provisional dataset-specific policy.
+It selects one snapshot nearest the center of each equal physical-time bin,
+rejects empty bins and insufficient cross-window gaps, and chooses the
+lexicographically first filename for exact duplicated time coordinates. This
+chooses a canonical record without proving repeated fields identical. It does
+not silently merge near-equal coordinates. Unselected records are excluded.
+The inventory hash and the selection rules are recorded in the manifest.
+Neither the inventory nor generated manifests should be committed.
+
+Generated manifests enable coordinate checks during preparation. Stored spatial
+coordinates must be uniform and agree with the specified spacing (allowing
+float32 coordinate roundoff). The coordinate span plus one grid spacing estimates
+the periodic box length; units and periodicity still require source confirmation.
+Preparation prints progress and writes `preparation.json` with dimensions,
+plane counts, raw training normalization, normalized means/std per split and
+physical-unit wrap-to-neighbor squared-jump ratios. Nonunit wrap ratios can occur
+in small samples, so inspect them rather than enforcing an arbitrary threshold.
+
+For an initial real-data check, use four training snapshots, two validation,
+two test, and one central plane. Run only `prepare`, inspect its summary, and
+then build the larger pilot manifest in a separate run directory. This avoids
+using a large export or a training job to debug axis and coordinate handling.

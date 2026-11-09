@@ -31,3 +31,16 @@ No real turbulence data were available locally. Physical axis interpretation,
 time-coordinate ordering/units, guard-gap adequacy, real-data input speed,
 CUDA memory/runtime, and generated turbulence statistics remain unverified.
 No real-data split or scientific conclusion is approved by this validation.
+
+Follow-up validation on 2026-11-09:
+
+- Ten tests pass, including deterministic time-coordinate deduplication/bin
+  selection and a physically labeled x,y,z storage-to-y,x plane test with
+  coordinate-spacing validation.
+- Synthetic preparation/training/paired sampling smoke passes after adding
+  preparation statistics. Normalized training means are near zero and standard
+  deviations near one.
+- Manifest construction was checked against a supplied inventory for both a
+  small data check and a larger candidate pilot. This uses metadata only; no
+  real velocity arrays were read locally. Dataset-specific manifests and the
+  supplied inventory remain outside version control.

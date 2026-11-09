@@ -85,3 +85,32 @@ def test_phase_seam_detects_relocated_grid():
     first=metrics(a,8,1)['max_phase_seam_ratio'][1]
     moved=metrics(np.roll(a,3,-1),8,1)['max_phase_seam_ratio'][1]
     assert first>5 and moved>5
+
+
+def test_manifest_builder_deduplicates_and_preserves_time_gap():
+    from build_manifest import build
+    inventory=[]
+    for name in ['b.nc','a.nc']:
+        inventory.append(dict(file=name,sizes=dict(time=31,x=16,y=16,z=2),variables={c:['time','x','y','z'] for c in ['u','v','w']},time=list(range(31))))
+    windows=dict(train=(0,6),val=(12,18),test=(24,30))
+    m=build(inventory,windows,dict(train=3,val=2,test=2),5,.1,[0],['u','v','w'])
+    assert len(m['snapshots'])==7
+    assert all(r['file']=='a.nc' for r in m['snapshots'])
+    assert len({r['time'] for r in m['snapshots']})==7
+    assert m['selection']['duplicate_time_records_omitted']==31
+    with pytest.raises(ValueError,match='guard gap'):
+        build(inventory,windows,dict(train=3,val=2,test=2),7,.1,[0],['u','v','w'])
+
+
+def test_xyz_storage_becomes_yx_plane_and_spacing_checked(tmp_path):
+    from data import slices
+    x=np.arange(16)*.1; y=np.arange(16)*.1; z=np.arange(2)*.1
+    field=100*np.arange(16)[:,None,None]+10*np.arange(16)[None,:,None]+np.arange(2)[None,None,:]
+    xr.Dataset({c:(('time','x','y','z'),field[None].astype('float32')) for c in ['u','v','w']},coords=dict(time=[0.],x=x,y=y,z=z)).to_netcdf(tmp_path/'xyz.nc')
+    m=dict(dims=['time','z','y','x'],channels=['u','v','w'],shape=[16,16],slice_indices=[1],spacing=.1,verify_spacing=True,snapshots=[dict(file='xyz.nc',time_index=0,time=0.,split='train')])
+    a=next(slices(m,tmp_path,'train'))
+    assert a.shape==(3,16,16)
+    assert a[0,2,3]==321 # x=3,y=2,z=1
+    m['spacing']=.2
+    with pytest.raises(ValueError,match='spacing'):
+        next(slices(m,tmp_path,'train'))
