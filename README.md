@@ -264,3 +264,10 @@ For an initial real-data check, use four training snapshots, two validation,
 two test, and one central plane. Run only `prepare`, inspect its summary, and
 then build the larger pilot manifest in a separate run directory. This avoids
 using a large export or a training job to debug axis and coordinate handling.
+
+## Diagnostic and training screens
+
+See [EXPERIMENTS.md](EXPERIMENTS.md) for checkpoint-only solver/shift diagnostics,
+noise-level validation probes, mean-drift traces, and controlled duration,
+capacity and window-size training arms. The existing checkpoint remains usable;
+no real-data results from these new screens have been collected yet.

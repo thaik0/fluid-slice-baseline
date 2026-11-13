@@ -41,6 +41,10 @@ def train(a):
             crops.append(field[:,(y+np.arange(a.patch))%h][:,:,(z+np.arange(a.patch))%w])
         return torch.tensor(np.stack(crops),device=a.device)
     history=[]; start=time.perf_counter()
+    config=dict(channels=x.shape[1],width=a.width)
+    source_hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).parent.glob('*.py')}
+    def save_checkpoint(name):
+        torch.save(dict(model=model.state_dict(),optimizer=opt.state_dict(),config=config,normalization=norm,manifest=m,args=vars(a),history=history,source_hashes=source_hashes),out/name)
     if a.device.startswith('cuda'): torch.cuda.reset_peak_memory_stats()
     for step in range(a.steps):
         model.train(); target=batch(x,rng); noise=torch.randn_like(target); t=torch.rand(a.batch,device=a.device)
@@ -56,6 +60,8 @@ def train(a):
                 vl=(model((v+z)/2,tv)-(v-z)).square().mean().item()
             record=dict(step=step+1,train_loss=loss.item(),val_loss_t05=vl)
             history.append(record); print(record,flush=True)
+        if getattr(a,'checkpoint_every',0) and (step+1)%a.checkpoint_every==0:
+            save_checkpoint(f'checkpoint-{step+1}.pt')
     sync(a.device)
     config=dict(channels=x.shape[1],width=a.width)
     source_hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(__file__).parent.glob('*.py')}
@@ -112,6 +118,7 @@ def main():
     tr=sub.add_parser('train'); ev=sub.add_parser('evaluate')
     for q in [tr,ev]:
         q.add_argument('--data',required=True); q.add_argument('--out',required=True); q.add_argument('--seed',type=int,default=42); q.add_argument('--steps',type=int,default=1000); q.add_argument('--batch',type=int,default=8); q.add_argument('--device',default='cpu')
+    tr.add_argument('--checkpoint-every',type=int,default=0)
     tr.add_argument('--width',type=int,default=32); tr.add_argument('--patch',type=int,default=64); tr.add_argument('--lr',type=float,default=1e-4)
     ev.add_argument('--checkpoint',required=True); ev.add_argument('--samples',type=int,default=8); ev.add_argument('--split',choices=['val','test'],default='val')
     a=p.parse_args()

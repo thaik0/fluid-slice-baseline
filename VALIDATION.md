@@ -44,3 +44,18 @@ Follow-up validation on 2026-11-09:
   small data check and a larger candidate pilot. This uses metadata only; no
   real velocity arrays were read locally. Dataset-specific manifests and the
   supplied inventory remain outside version control.
+
+Diagnostic implementation validation on 2026-11-13:
+
+- Fifteen tests pass. New coverage checks physical-time shift policies, exact
+  compatibility with the original 32-step shifted sampler, known-ODE Heun
+  accuracy, deterministic time probes and finite seam metrics for single windows.
+- All ten diagnostic arms ran end to end on a synthetic-data checkpoint,
+  including reports, paired differences, traces, time probes and PNG generation.
+  Reports serialize with nonfinite JSON values forbidden in the verification.
+- A two-step synthetic training run saved both periodic checkpoints. The screen
+  collector consumed a completed synthetic report successfully.
+- Both new Slurm scripts pass bash syntax validation. The five-arm training
+  array and real-data diagnostic sweep have not been run on Perlmutter here.
+  CUDA compatibility, resource requirements and scientific outcomes remain to
+  be checked there. Synthetic execution is not evidence of turbulence fidelity.

@@ -17,7 +17,7 @@ def metrics(a, patch, spacing):
     jumps=[]; wraps=[]
     for ax,size in [(-2,h),(-1,w)]:
         d = np.mean(np.diff(a,axis=ax)**2,axis=tuple(i for i in range(4) if i != ax%4))
-        phase = [float(d[np.arange(len(d))%patch==p].mean()) for p in range(patch)]
+        phase = [float(d[np.arange(len(d))%patch==p].mean()) for p in range(min(patch,len(d)))]
         jumps.append(max(phase)/(float(d.mean())+1e-30))
         wraps.append(float(np.mean((np.take(a,0,axis=ax)-np.take(a,-1,axis=ax))**2))/(float(d.mean())+1e-30))
     def derivative(x,axis):
