@@ -21,7 +21,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__); p.add_argument('root'); p.add_argument('--arm',default='fixed-euler-64')
     a=p.parse_args(); report=collect(a.root,a.arm); root=Path(a.root)
     (root/'screen-summary.json').write_text(json.dumps(report,indent=2))
-    lines=['# Training screen','',f'Common sampling control: {a.arm}. Validation only; one training seed is exploratory.','', '| Run | Parameters | Window | Updates | Train seconds | Low / real | High / real | Spectrum L1 |','|---|---:|---:|---:|---:|---:|---:|---:|']
+    lines=['# Training screen','',f'Common sampling control: {a.arm}. Validation only; training-seed repeats remain exploratory.','', '| Run | Parameters | Window | Updates | Train seconds | Low / real | High / real | Spectrum L1 |','|---|---:|---:|---:|---:|---:|---:|---:|']
     for r in report['runs']:
         lines.append(f"| {r['name']} | {r['parameters']} | {r['patch']} | {r['updates']} | {r['training_seconds']:.1f} | {r['low_ratio']:.3f} | {r['high_ratio']:.3f} | {r['spectrum_l1']:.3f} |")
     text='\n'.join(lines)+'\n'; (root/'screen-summary.md').write_text(text); print(text)

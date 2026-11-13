@@ -16,7 +16,7 @@ PYTHON_BIN="${PYTHON_BIN:-$PWD/.venv/bin/python3}"
 : "${SLICE_RUN:?Set SLICE_RUN to existing pilot directory}"
 TRAIN_SEED="${TRAIN_SEED:-42}"
 # First five arms screen duration/capacity/context; arm 5 is optional.
-case "${SLURM_ARRAY_TASK_ID}" in
+case "${SCREEN_ARM:-${SLURM_ARRAY_TASK_ID}}" in
   0) NAME=baseline; WIDTH=32; PATCH=64; STEPS=1000 ;;
   1) NAME=longer; WIDTH=32; PATCH=64; STEPS=5000 ;;
   2) NAME=wider; WIDTH=64; PATCH=64; STEPS=5000 ;;

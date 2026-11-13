@@ -59,3 +59,13 @@ Diagnostic implementation validation on 2026-11-13:
   array and real-data diagnostic sweep have not been run on Perlmutter here.
   CUDA compatibility, resource requirements and scientific outcomes remain to
   be checked there. Synthetic execution is not evidence of turbulence fidelity.
+
+Window replication launcher validation:
+
+- All six dry-run dispatch tests verify the expected seed/window-arm pairing
+  and the shared replication output root without invoking Slurm or training.
+- The existing training launcher still defaults to its original array mapping;
+  an explicit SCREEN_ARM override lets the replication array reuse it without
+  rewriting Slurm environment identifiers.
+- Bash syntax checks pass. GPU execution and scientific replication outcomes
+  remain to be verified on Perlmutter.

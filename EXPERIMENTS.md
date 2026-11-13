@@ -145,3 +145,45 @@ This writes screen-summary.json and screen-summary.md and refuses to combine
 reports with different manifest hashes. Bring these plus per-run diagnostics.json,
 diagnostics.png and training.json. Inspect failed array tasks in their logs;
 the collector includes completed arms only and does not imply missing arms passed.
+
+## Replicate the window comparison before redesigning the model
+
+Submit `scripts/replicate_windows.slurm` to run six tasks, at most one at a time:
+
+| Array task | Training seed | Training window | Screen arm |
+| --- | --- | --- | --- |
+| 0 | 43 | 64 | longer |
+| 1 | 43 | 128 | context128 |
+| 2 | 43 | 384 | wholeplane |
+| 3 | 44 | 64 | longer |
+| 4 | 44 | 128 | context128 |
+| 5 | 44 | 384 | wholeplane |
+
+Every task uses width 32 (473,187 parameters), 5,000 updates, batch 8 and the
+existing dataset normalization/split. It invokes the existing screen script
+without changing Slurm's array IDs. Four identical generation seeds and the
+same ten sampler settings match the original seed-42 screen; generated seeds
+are not additional independent training replicates. Time probes also retain
+the original eight batches. A later larger generation ensemble can refine
+sampling variability, but does not replace multiple training seeds.
+
+```bash
+export PYTHON_BIN="$PWD/.venv/bin/python3"
+export SLICE_RUN="$PWD/runs/pilot"
+sbatch --account=YOUR_GPU_ACCOUNT --export=ALL scripts/replicate_windows.slurm
+# Once ALL SIX tasks finish, replace ARRAY_JOBID below:
+python3 collect_screen.py runs/pilot/replication-ARRAY_JOBID
+```
+
+Outputs go under a new replication-ARRAY_JOBID directory, leaving prior screens
+intact. Existing training seed 42 plus these runs gives three training seeds
+per window. Use common sampler controls and compare each window contrast
+within each training seed, not a different selected sampler per model. Three
+training seeds remain a small exploratory sample, not a precise population
+estimate. Do not change the held-out test set or tune new objectives on it.
+
+Check all six Slurm task exit states: the collector only lists completed
+reports. Package their training.json, diagnostics.json and diagnostics.png for
+joint comparison with the earlier seed-42 archives. Queue overrides remain
+user-specific, as with the original screen. A dry-run dispatch check is available
+via REPLICATION_DRY_RUN=1 without allocating a GPU or loading a module.
