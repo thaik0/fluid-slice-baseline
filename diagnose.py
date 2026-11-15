@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 import numpy as np
 import torch
-from model import FlowNet, tiled
+from model import FlowNet, tiled, validate_domain
 from data import digest
 from metrics import metrics
 from run import seed, sync, write
@@ -84,6 +84,7 @@ def main():
     if digest(manifest)!=norm['manifest_sha256'] or json.loads((data/'normalization.json').read_text())!=norm:
         raise ValueError('Checkpoint and prepared data provenance differ')
     patch=ck['args']['patch']; h,w=manifest['shape']
+    validate_domain(ck['config'].get('padding','zeros'),patch,(h,w))
     val=np.load(data/'val.npy',mmap_mode='r'); train=np.load(data/'train.npy',mmap_mode='r')
     mean=np.array(norm['mean'])[None,:,None,None]; std=np.array(norm['std'])[None,:,None,None]
     seam_period=64 if min(h,w)>=64 else patch
@@ -94,7 +95,7 @@ def main():
     for i,r in enumerate(rows):
         raw=val[i*planes:(i+1)*planes]*std+mean
         grouped.append(dict(time=r['time'],mean=raw.mean((0,2,3)).tolist(),energy=float((raw**2).sum(1).mean()/2)))
-    report=dict(checkpoint_sha256=hashlib.sha256(Path(a.checkpoint).read_bytes()).hexdigest(),manifest_sha256=digest(manifest),args=vars(a),torch=torch.__version__,numpy=np.__version__,reference=reference,reference_snapshot_groups=grouped,seam_period=seam_period,shift_bins=32,inference_patch=patch,samples=[],probes={},source_hashes={f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in Path(__file__).parent.glob('*.py')})
+    report=dict(model_config=ck['config'],training_seed=ck['args']['seed'],parameters=sum(p.numel() for p in model.parameters()),checkpoint_sha256=hashlib.sha256(Path(a.checkpoint).read_bytes()).hexdigest(),manifest_sha256=digest(manifest),args=vars(a),torch=torch.__version__,numpy=np.__version__,reference=reference,reference_snapshot_groups=grouped,seam_period=seam_period,shift_bins=32,inference_patch=patch,samples=[],probes={},source_hashes={f.name:hashlib.sha256(f.read_bytes()).hexdigest() for f in Path(__file__).parent.glob('*.py')})
     for split,arr in [('train',train),('val',val)]:
         report['probes'][split]=time_probe(model,arr,patch,a.device,a.probe_batches,a.batch,8192)
     arms=ARMS if not a.smoke else [('fixed',32,'euler'),('all',32,'euler')]

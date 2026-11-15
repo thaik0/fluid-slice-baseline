@@ -5,21 +5,24 @@ import torch.nn.functional as F
 
 
 class Block(nn.Module):
-    def __init__(self, a, b):
+    def __init__(self, a, b, normalization="group", padding="zeros"):
         super().__init__()
-        self.net = nn.Sequential(nn.Conv2d(a,b,3,padding=1), nn.GroupNorm(4,b), nn.SiLU(), nn.Conv2d(b,b,3,padding=1), nn.GroupNorm(4,b), nn.SiLU())
+        norm = lambda: nn.GroupNorm(4,b) if normalization == "group" else nn.Identity()
+        self.net = nn.Sequential(nn.Conv2d(a,b,3,padding=1,padding_mode=padding), norm(), nn.SiLU(), nn.Conv2d(b,b,3,padding=1,padding_mode=padding), norm(), nn.SiLU())
     def forward(self,x): return self.net(x)
 
 
 class FlowNet(nn.Module):
-    def __init__(self, channels=3, width=32):
+    def __init__(self, channels=3, width=32, normalization="group", padding="zeros"):
         super().__init__()
+        if normalization not in ['group','none'] or padding not in ['zeros','circular']:
+            raise ValueError('Unknown normalization or padding')
         if width % 4: raise ValueError('width must be divisible by four')
-        self.a = Block(channels+1,width)
-        self.b = Block(width,2*width)
-        self.c = Block(2*width,4*width)
-        self.d = Block(6*width,2*width)
-        self.e = Block(3*width,width)
+        self.a = Block(channels+1,width,normalization,padding)
+        self.b = Block(width,2*width,normalization,padding)
+        self.c = Block(2*width,4*width,normalization,padding)
+        self.d = Block(6*width,2*width,normalization,padding)
+        self.e = Block(3*width,width,normalization,padding)
         self.out = nn.Conv2d(width,channels,1)
     def forward(self,x,t):
         t = torch.as_tensor(t,device=x.device,dtype=x.dtype).reshape(-1,1,1,1)
@@ -49,3 +52,9 @@ def sample(model,noise,steps,patch,shifted,seed,batch=8):
         shifts.append(shift)
         x = x + tiled(model,x,i/steps,patch,shift,batch)/steps
     return x, shifts
+
+
+def validate_domain(padding, patch, shape):
+    """A periodic whole plane may wrap; an arbitrary local crop may not."""
+    if padding == 'circular' and tuple(shape) != (patch,patch):
+        raise ValueError('Circular padding requires full square periodic planes, not local crops')

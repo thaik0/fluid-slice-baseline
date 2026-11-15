@@ -69,3 +69,18 @@ Window replication launcher validation:
   rewriting Slurm environment identifiers.
 - Bash syntax checks pass. GPU execution and scientific replication outcomes
   remain to be verified on Perlmutter.
+
+Normalization/boundary factorial implementation validation:
+
+- Forty-one tests pass, including all four forward/backward variants, legacy
+  state-dict/default compatibility, identical convolution initialization across
+  treatments, periodic edge impulse behavior and roll covariance on the
+  four-cell downsampling sublattice, crop-domain guard, twelve array mappings,
+  incomplete/mismatched factorial rejection and known interaction arithmetic.
+- All four variants completed two synthetic training steps and the full ten-arm
+  diagnostic pipeline with finite reports and correct saved model configurations.
+- An existing pre-ablation local smoke checkpoint loads strictly in the updated
+  model. New launcher shell syntax and Python compilation pass.
+- Real 384-square training, 5,000-update stability, circular-padding CUDA backward
+  behavior under deterministic mode, GPU memory/runtime and scientific treatment
+  effects have not been validated here. No actual factorial was submitted locally.

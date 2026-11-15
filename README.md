@@ -271,3 +271,7 @@ See [EXPERIMENTS.md](EXPERIMENTS.md) for checkpoint-only solver/shift diagnostic
 noise-level validation probes, mean-drift traces, and controlled duration,
 capacity and window-size training arms. The existing checkpoint remains usable;
 no real-data results from these new screens have been collected yet.
+
+The whole-plane normalization/boundary factorial is launched with
+`scripts/norm_boundary.slurm`; its twelve-run design and collector are documented
+in [EXPERIMENTS.md](EXPERIMENTS.md#whole-plane-normalization--boundary-factorial).

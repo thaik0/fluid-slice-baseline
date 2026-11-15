@@ -187,3 +187,83 @@ reports. Package their training.json, diagnostics.json and diagnostics.png for
 joint comparison with the earlier seed-42 archives. Queue overrides remain
 user-specific, as with the original screen. A dry-run dispatch check is available
 via REPLICATION_DRY_RUN=1 without allocating a GPU or loading a module.
+
+## Whole-plane normalization × boundary factorial
+
+The window replication found persistent seed-dependent component means and
+spectral errors even without internal patch tiling. These observations motivate
+a hypothesis test, not a conclusion about the cause. The next factorial trains:
+
+| Treatment | Model normalization | 3×3 convolution padding |
+| --- | --- | --- |
+| Control | GroupNorm | Zero |
+| Boundary only | GroupNorm | Circular |
+| Normalization only | Identity (no normalization layer) | Zero |
+| Combined | Identity | Circular |
+
+All treatments use full 384-square planes, width 32, batch 8, 5,000 updates,
+AdamW at 1e-4, the same prepared data and training-only data normalization.
+Removing model GroupNorm does NOT remove dataset standardization. The control
+has 473,187 parameters; identity variants have 471,907 because the GroupNorm
+affine parameters are removed. Within a training seed, all convolution weights
+start identically across the four treatments and training crops/noise/time draws
+are matched. This is possible because GroupNorm/Identity initialization does not
+consume random draws. Defaults and old checkpoint state-dict keys are preserved.
+
+The array has twelve tasks, one at a time: tasks 0–3 run the four treatments in
+table order with seed 42; tasks 4–7 use seed 43; tasks 8–11 use seed 44. Run names
+include both factors and seed. Existing run directories are rejected to prevent
+accidental overwrite. Checkpoints are saved every 1,000 updates and at the end.
+Every run receives the same ten sampling diagnostic arms, four generation seeds
+4242–4245, and eight training/validation probe batches. Test data remain untouched.
+
+**Physical boundary guard:** circular padding is only allowed when the training
+and inference patch is the entire square plane. Arbitrary local crops are not
+periodic simulations. All 3×3 convolutions, including coarse feature maps, use
+the selected padding; 1×1 output convolution needs no padding. Pooling and
+upsampling remain unchanged. Two stride-two pooling layers mean arbitrary
+one-cell rolls can still change the downsampling phase, even with circular
+padding. Tests verify roll covariance for shifts divisible by four, not full
+translation covariance. Thus shift-policy effects need not vanish in this arm.
+
+Primary comparisons use FIXED Euler64, isolating the boundary treatment without
+randomly rolling the domain. All-shift and late-shift Euler64 are secondary,
+predefined comparisons with the same schedule across treatments. Effects on
+mean drift, centered/uncentered energy, full spectra and scale bands matter
+jointly. A reduction in pooled component mean alone can hide cancellation; we
+also compare mean-flow energy `total energy - plane-centered energy` against the
+same statistic on real planes. Nonzero real plane means are legitimate: this
+is not a constraint forcing every sample's mean to zero.
+
+`collect_factorial.py` requires all twelve completed runs, identical reference,
+manifest, optimizer/training settings and generation-seed/sampler combinations.
+It produces per-run outcomes, ranges over training seeds and within-seed main
+effects/interaction contrasts. Main effects average each factor's change over
+both settings of the other factor; interaction is the difference of the padding
+effects. These are descriptive contrasts for three training seeds, not significance
+claims. No automatic winner or new loss/mean correction is selected.
+
+The same optimizer is held fixed to make a controlled screen. If removing
+normalization destabilizes training, that does not establish its impossibility:
+report the failure and separately plan optimization controls. Nonfinite training
+loss fails explicitly instead of silently producing a successful report. Circular
+CUDA training under the existing deterministic setting is not verified locally;
+if it errors, retain the log rather than silently disabling reproducibility.
+
+```bash
+export PYTHON_BIN="$PWD/.venv/bin/python3"
+export SLICE_RUN="$PWD/runs/pilot"
+# Choose your account and queue explicitly. Example for an exhausted GPU project:
+sbatch --account=YOUR_GPU_ACCOUNT --qos=shared_overrun \
+  --time-min=00:15:00 --export=ALL scripts/norm_boundary.slurm
+# After all twelve tasks finish:
+python3 collect_factorial.py runs/pilot/factorial-ARRAY_JOBID
+```
+
+The job has a 15-minute requested maximum per task based on prior full-plane
+runs of about six minutes. New treatments may run differently; timeout is an
+execution failure, not a scientific result. If timeout occurs, inspect the log
+and increase the next submission's time budget explicitly. Source/environment
+records and per-treatment training time/memory are saved. Bring back
+factorial-summary.json/md and each treatment's training.json, diagnostics.json,
+and diagnostics.png. Existing screens remain available for control replication.
