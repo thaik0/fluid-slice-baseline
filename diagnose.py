@@ -72,8 +72,10 @@ def main():
     p.add_argument('--checkpoint',required=True); p.add_argument('--data',required=True); p.add_argument('--out',required=True)
     p.add_argument('--device',default='cpu'); p.add_argument('--samples',type=int,default=8); p.add_argument('--seed',type=int,default=4242)
     p.add_argument('--batch',type=int,default=8); p.add_argument('--probe-batches',type=int,default=16)
+    p.add_argument('--mean-samples',type=int,default=0)
     p.add_argument('--smoke',action='store_true'); p.add_argument('--save-fields',action='store_true')
     a=p.parse_args()
+    if a.mean_samples<0: p.error('mean-samples must be nonnegative')
     if min(a.samples,a.batch,a.probe_batches)<1: p.error('Counts must be positive')
     seed(a.seed); out=Path(a.out)
     if (out/'diagnostics.json').exists(): raise ValueError('Use a fresh output directory')
@@ -84,7 +86,7 @@ def main():
     if digest(manifest)!=norm['manifest_sha256'] or json.loads((data/'normalization.json').read_text())!=norm:
         raise ValueError('Checkpoint and prepared data provenance differ')
     patch=ck['args']['patch']; h,w=manifest['shape']
-    validate_domain(ck['config'].get('padding','zeros'),patch,(h,w))
+    validate_domain(ck['config'].get('padding','zeros'),patch,(h,w),ck['config'].get('mean_mode','implicit'))
     val=np.load(data/'val.npy',mmap_mode='r'); train=np.load(data/'train.npy',mmap_mode='r')
     mean=np.array(norm['mean'])[None,:,None,None]; std=np.array(norm['std'])[None,:,None,None]
     seam_period=64 if min(h,w)>=64 else patch
@@ -115,6 +117,9 @@ def main():
             report['samples'].append(dict(arm=name,seed=s,nfe=steps*(2 if solver=='heun' else 1),seconds=seconds,peak_cuda_bytes=torch.cuda.max_memory_allocated() if a.device.startswith('cuda') else None,trace=trace,metrics=metrics(raw,seam_period,manifest['spacing'])))
             print(name,s,flush=True)
             write(out/'partial.json',report)
+    if a.mean_samples:
+        from mean_statistics import collect_mean_ensemble
+        report['mean_distribution']=collect_mean_ensemble(model,ck,val,manifest,a,report['samples'],integrate)
     report['paired_vs_fixed64'] = paired(report,'fixed-euler-64')
     report['summary']=summarize(report)
     write(out/'diagnostics.json',report)

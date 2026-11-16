@@ -84,3 +84,20 @@ Normalization/boundary factorial implementation validation:
 - Real 384-square training, 5,000-update stability, circular-padding CUDA backward
   behavior under deterministic mode, GPU memory/runtime and scientific treatment
   effects have not been validated here. No actual factorial was submitted locally.
+
+Learned mean-branch implementation validation:
+
+- Fifty-one tests pass, including legacy defaults/checkpoints, identical backbone
+  initialization and parent RNG state across mean modes, exact predicted-output
+  mean ownership, ordinary-MSE mean/centered decomposition, finite gradients,
+  full-plane sampler guard, six array mappings and collector completeness/settings
+  checks. A distribution test detects collapse even at correct mean-flow energy.
+- Both implicit and learned variants completed three synthetic training updates,
+  all ten sampling diagnostics and an eight-sample mean ensemble. Reports are
+  finite, reference plane labels align, and saved configurations load strictly.
+- Parameter counts verified: 473,187 control; 477,862 learned branch. Python
+  compilation and launcher shell syntax pass.
+- The 384-square 5,000-update GPU comparison and 64-sample real-data ensembles
+  have not been run locally. Scientific effects, stability, CUDA behavior and
+  runtime must be checked on Perlmutter. The synthetic smoke establishes execution
+  only; it is not evidence of improved turbulence generation.

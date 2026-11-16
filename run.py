@@ -30,8 +30,8 @@ def train(a):
     if digest(m)!=norm['manifest_sha256']: raise ValueError('Manifest/normalization mismatch')
     x=np.load(data/'train.npy',mmap_mode='r'); val=np.load(data/'val.npy',mmap_mode='r')
     if a.patch%4 or a.patch<4 or a.patch>min(x.shape[-2:]): raise ValueError('Invalid training patch')
-    config=dict(channels=x.shape[1],width=a.width,normalization=getattr(a,'model_norm','group'),padding=getattr(a,'padding','zeros'))
-    validate_domain(config['padding'],a.patch,x.shape[-2:])
+    config=dict(channels=x.shape[1],width=a.width,normalization=getattr(a,'model_norm','group'),padding=getattr(a,'padding','zeros'),mean_mode=getattr(a,'mean_mode','implicit'))
+    validate_domain(config['padding'],a.patch,x.shape[-2:],config['mean_mode'])
     model=FlowNet(**config).to(a.device)
     opt=torch.optim.AdamW(model.parameters(),lr=a.lr)
     rng=np.random.default_rng(a.seed)
@@ -81,7 +81,7 @@ def evaluate(a):
     m=json.loads((data/'manifest.json').read_text())
     if digest(m)!=norm['manifest_sha256']: raise ValueError('Reference manifest differs')
     h,w=m['shape']; p=ck['args']['patch']
-    validate_domain(ck['config'].get('padding','zeros'),p,(h,w))
+    validate_domain(ck['config'].get('padding','zeros'),p,(h,w),ck['config'].get('mean_mode','implicit'))
     mean=np.array(norm['mean'])[None,:,None,None]; std=np.array(norm['std'])[None,:,None,None]
     ref=np.load(data/f'{a.split}.npy',mmap_mode='r')
     report=dict(reference_split=a.split,checkpoint_sha256=hashlib.sha256(Path(a.checkpoint).read_bytes()).hexdigest(),manifest_sha256=digest(m),reference=metrics(ref*std+mean,p,m['spacing']),samples=[])
@@ -121,6 +121,7 @@ def main():
     tr=sub.add_parser('train'); ev=sub.add_parser('evaluate')
     for q in [tr,ev]:
         q.add_argument('--data',required=True); q.add_argument('--out',required=True); q.add_argument('--seed',type=int,default=42); q.add_argument('--steps',type=int,default=1000); q.add_argument('--batch',type=int,default=8); q.add_argument('--device',default='cpu')
+    tr.add_argument('--mean-mode',choices=['implicit','learned'],default='implicit')
     tr.add_argument('--model-norm',choices=['group','none'],default='group')
     tr.add_argument('--padding',choices=['zeros','circular'],default='zeros')
     tr.add_argument('--checkpoint-every',type=int,default=0)

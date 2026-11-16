@@ -267,3 +267,83 @@ and increase the next submission's time budget explicitly. Source/environment
 records and per-treatment training time/memory are saved. Bring back
 factorial-summary.json/md and each treatment's training.json, diagnostics.json,
 and diagnostics.png. Existing screens remain available for control replication.
+
+## Learned mean-flow branch (after the boundary factorial)
+
+Use the GroupNorm + periodic whole-plane model as the control. The hypothesis is
+that explicitly modeling the zero spatial Fourier mode can improve the
+seed-dependent sample-mean distribution without sacrificing centered structure.
+It does not itself add a mechanism for the other missing low-frequency modes.
+
+Two architectures are trained at seeds 42,43,44:
+
+- `implicit`: unchanged model, 473,187 parameters.
+- `learned`: same backbone plus a 4→64→64→3 SiLU MLP (4,675 parameters), total
+  477,862. Inputs are the three normalized component spatial means of x_t and
+  scalar time t. Its output is the normalized mean of the flow velocity.
+
+For learned mode, the output is `backbone(x,t) - spatial_mean(backbone(x,t)) +
+mean_head(spatial_mean(x),t)`. The backbone still receives the original state;
+only its output mean is separated. This is a learned branch, not a constraint
+forcing generated fields to zero mean and not a postprocessing correction.
+Whole-plane training and inference are enforced for this ablation. Local-patch
+mean heads would predict a different quantity and are rejected by the CLI and
+sampler guard.
+
+Keep the ORIGINAL ordinary pixelwise MSE objective and optimizer. Algebraically,
+its value is the sum of centered-field MSE and spatial-mean MSE. There is no new
+loss weight, spectrum penalty or clipping. A new branch and output decomposition
+change representation/optimization together; a successful result would motivate
+further isolation rather than prove why GroupNorm failed. The extra parameter
+count is reported. No exact reproduction of another fluid method is claimed.
+
+Within each seed, backbone initialization AND the following training noise/time
+RNG stream match. The new MLP is initialized in a forked CPU RNG scope; it does
+not advance the parent state. It is still randomly initialized, not trained in
+advance or manually fitted to validation data. Old checkpoints load with the
+implicit default.
+
+The six-task array maps 0/1 to implicit/learned seed42, 2/3 to seed43, 4/5 to
+seed44. Every run uses width 32, GroupNorm, circular padding, full 384-square planes,
+batch 8, 5,000 updates, AdamW at 1e-4 and checkpointing every 1,000 updates. Standard
+diagnostics remain ten arms × four generation seeds, with eight probe batches.
+Fixed Euler64 is the primary comparison. Test data remain untouched.
+
+Additionally, each run samples 64 fixed-Euler64 fields with seeds 4242–4305.
+The four existing fields' means are reused, and only the remaining 60 need extra
+sampling. No extra FFTs or field files are needed for this ensemble. Save all
+per-component means and their mean/std/covariance, 5/50/95 percentiles and
+mean-flow energy. Compare against all 128 validation plane means with their
+snapshot-time and plane labels. Marginal one-dimensional Wasserstein distances
+are reported in dataset velocity units and normalized by TRAINING component
+std (avoiding division by near-zero reference mean variation). Distances are
+descriptive: generated samples and real correlated planes have finite, unequal
+sample counts. Marginal agreement cannot establish the correct joint law or
+coupling to spatial structure. We do not give confidence intervals from planes
+or force the reference distribution to zero mean.
+
+Success requires repeatable improvement in the mean distribution across training
+seeds while preserving centered spectra, large-scale energy and fine-scale
+behavior. Correct mean-flow energy with collapsed sample means is not success.
+If the head helps only one component/seed or worsens centered structure, report
+the tradeoff. If it fails, possible explanations include limited head inputs,
+time representation or optimization—not proof that explicit mean prediction
+cannot work. Keep all comparisons against the same data and sampler.
+
+```bash
+export PYTHON_BIN="$PWD/.venv/bin/python3"
+export SLICE_RUN="$PWD/runs/pilot"
+sbatch --account=YOUR_GPU_ACCOUNT --qos=shared_overrun \
+  --time-min=00:15:00 --export=ALL scripts/mean_branch.slurm
+# After all six tasks finish:
+python3 collect_mean_branch.py runs/pilot/mean-branch-ARRAY_JOBID
+```
+
+The requested maximum is 30 minutes per task, with a 15-minute minimum to leave
+room for the larger generation ensemble. Actual assigned walltime and runtime
+must be checked on Perlmutter. The collector requires all six completed models,
+matching data/references, training settings and sampling seeds. It separates the
+four-seed spectral screen from the 64-seed mean ensemble and reports per-seed
+learned-minus-control contrasts. New outputs go under mean-branch-ARRAY_JOBID;
+prior factorial outputs are preserved. Bring back mean-summary.json/md plus each
+run's training.json, diagnostics.json and diagnostics.png.

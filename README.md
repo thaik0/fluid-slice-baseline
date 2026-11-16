@@ -275,3 +275,7 @@ no real-data results from these new screens have been collected yet.
 The whole-plane normalization/boundary factorial is launched with
 `scripts/norm_boundary.slurm`; its twelve-run design and collector are documented
 in [EXPERIMENTS.md](EXPERIMENTS.md#whole-plane-normalization--boundary-factorial).
+
+The next mean-flow branch comparison uses `scripts/mean_branch.slurm`. See the
+[experiment plan](EXPERIMENTS.md#learned-mean-flow-branch-after-the-boundary-factorial)
+for the exact model change, matched controls and distribution checks.
