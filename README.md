@@ -279,3 +279,9 @@ in [EXPERIMENTS.md](EXPERIMENTS.md#whole-plane-normalization--boundary-factorial
 The next mean-flow branch comparison uses `scripts/mean_branch.slurm`. See the
 [experiment plan](EXPERIMENTS.md#learned-mean-flow-branch-after-the-boundary-factorial)
 for the exact model change, matched controls and distribution checks.
+
+For the low-wavenumber investigation, `prepare_coarse.py` filters existing planes
+into a 96-square whole-domain dataset without reading test data. Review its
+preparation report before submitting the one-seed `scripts/coarse_pilot.slurm`.
+The [experiment plan](EXPERIMENTS.md#budgeted-coarse-whole-domain-pilot-low-k-focus)
+describes filter conventions, common-shell comparisons and the GPU spending cap.

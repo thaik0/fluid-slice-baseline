@@ -303,7 +303,7 @@ not advance the parent state. It is still randomly initialized, not trained in
 advance or manually fitted to validation data. Old checkpoints load with the
 implicit default.
 
-The six-task array maps 0/1 to implicit/learned seed42, 2/3 to seed43, 4/5 to
+The six-task array maps 0/1 to implicit/learned seed 42, 2/3 to seed43, 4/5 to
 seed44. Every run uses width 32, GroupNorm, circular padding, full 384-square planes,
 batch 8, 5,000 updates, AdamW at 1e-4 and checkpointing every 1,000 updates. Standard
 diagnostics remain ten arms × four generation seeds, with eight probe batches.
@@ -347,3 +347,99 @@ four-seed spectral screen from the 64-seed mean ensemble and reports per-seed
 learned-minus-control contrasts. New outputs go under mean-branch-ARRAY_JOBID;
 prior factorial outputs are preserved. Bring back mean-summary.json/md plus each
 run's training.json, diagnostics.json and diagnostics.png.
+
+## Budgeted coarse whole-domain pilot (low-k focus)
+
+The mean-branch reports show strong underdispersion and a severe first-shell
+energy deficit, partly hidden by excess in shells 3–6. The next question is
+whether a small model can learn the longest structures when fine-scale generation
+is removed from the task. This is a single-resolution coarse-stage diagnostic,
+not yet a full pyramidal implementation or a reproduction of another method.
+
+### CPU data preparation, no GPU allocation
+
+```bash
+python3 prepare_coarse.py --source runs/pilot/data \
+  --out runs/pilot/coarse96-data --size 96
+```
+
+This reads the existing prepared train.npy and val.npy, undoes their source
+normalization, applies a strict radial Fourier cutoff at integer radius 48,
+then decimates by four. Modes at/above the target Nyquist radius are excluded;
+this is intentional antialiasing, not unfiltered subsampling or image resizing.
+DC, retained Fourier amplitudes and phases are preserved. The source sample-zero
+location is retained; no half-cell recentering is applied. The physical box
+length is unchanged and grid spacing is multiplied by four. The coarse arrays
+are standardized with NEW coarse-training-only moments; all metrics undo that
+standardization. The original split and snapshot/plane identities are retained.
+
+The test array is neither read nor exported. Raw source arrays are not modified.
+Fresh output directories are required. Source manifest, normalization and array
+hashes are recorded. The derived manifest describes prepared coarse arrays; it
+must not be passed back to the raw NetCDF slice loader as if it were native data.
+
+Preparation streams planes with bounded memory, verifies aggregated physical
+shell energy 1–16 before storage to relative tolerance 1e-8, reports plane-mean
+preservation and normalized moments, and writes coarse-preparation.json. Tests
+cover retained-mode amplitude/phase, DC preservation, removal of high modes and
+Nyquist modes, spacing/domain extent, unchanged training statistics when only
+validation values change, and isolation of the reserved test array. Float32
+storage introduces small roundoff after the float64 filtering checks.
+
+This uses CPU work and disk I/O rather than GPU training. For long-running
+preparation use an appropriate CPU batch allocation; CPU and GPU allocation
+pools are separate. Do not move a large preprocessing workload onto a login node
+just to avoid GPU charging. Start with the bounded prepared subset above and
+observe its runtime.
+
+### Inspect preparation before one GPU pilot
+
+Bring back coarse-preparation.json first. Confirm preserved shell energies,
+physical spacing/domain and training normalization before submitting training.
+Membership and a positive usable GPU quota must be confirmed for your chosen
+funded account. No allocation is embedded in the repository.
+
+```bash
+# Only AFTER preparation review and allocation confirmation:
+export PYTHON_BIN="$PWD/.venv/bin/python3"
+export GPU_ACCOUNT=YOUR_APPROVED_GPU_ACCOUNT
+export COARSE_DATA="$PWD/runs/pilot/coarse96-data"
+sbatch --account="$GPU_ACCOUNT" --qos=shared --export=ALL scripts/coarse_pilot.slurm
+```
+
+The job requires GPU_ACCOUNT and verifies it matches SLURM_JOB_ACCOUNT before
+training. It runs ONE seed 42, width 32, GroupNorm, circular padding, implicit mean,
+batch 8, 5,000 updates and eight fixed-Euler64 samples. It does not launch an array
+or additional seeds. Whole 96 planes cover the same physical box as the 384 planes.
+The unchanged pixelwise MSE and model architecture are retained. Changing
+resolution also changes pixel exposure, relative convolutional receptive field,
+and the physical Fourier amplitudes of gridwise white noise. This is a task
+simplification experiment, not a pure isolation of receptive field or a proof
+about dimensionality.
+
+The hard wall limit is 15 minutes on one GPU: maximum 0.25 GPU-hours and estimated
+0.0625 standard shared GPU-node-hours, assuming the usual quarter-node footprint.
+Additional CPU/memory requests or site/QOS rules can affect billing; budget.json
+records the declared estimate and account. Actual usage must be taken from
+Slurm/Iris. There is no automatic retry, replication or resubmission. If the job
+hits the wall limit, report partial checkpoints and logs before requesting more.
+
+Outputs under runs/coarse-pilot-JOBID include training history, checkpoint,
+per-sample physical metrics, individual shell 1–16 ratios, grouped real snapshot
+references, full fields for two generated examples, low-pass views of shells 1–2
+with DC removed, and source/environment/budget records. Low-pass views use
+shared color scales within each row; these are independent samples, not paired
+reconstructions. Spectral uncertainty over eight generation seeds is descriptive;
+one training seed cannot establish a robust architecture improvement.
+
+Compare individual common PHYSICAL shells 1–16 to the filtered validation
+reference AND the earlier full-resolution spectrum. Their wavenumber spacing
+is the same because the box is unchanged. Do NOT compare the generic
+high_band_energy numbers directly across resolutions: the cutoff becomes
+shell 24 on 96 rather than shell 96 on 384. The coarse plot and summary focus on
+common low shells; single-window seam statistics are not an internal-tiling test.
+
+Decision: if first-shell recovery improves, follow with a budgeted replication
+before investigating refinement that preserves those modes. If it stays poor,
+inspect the coarse optimization and representation before adding stages or a
+spectral loss. Keep mean distribution/k=0 separate from these nonzero modes.

@@ -101,3 +101,22 @@ Learned mean-branch implementation validation:
   have not been run locally. Scientific effects, stability, CUDA behavior and
   runtime must be checked on Perlmutter. The synthetic smoke establishes execution
   only; it is not evidence of improved turbulence generation.
+
+Budgeted coarse-pilot implementation validation:
+
+- Fifty-four tests pass. New tests verify Fourier amplitude/phase and DC,
+  high-frequency and target-Nyquist rejection, common-shell energy conservation,
+  physical spacing/domain preservation, coarse training-only normalization,
+  validation-change isolation, provenance, reserved-test isolation, overwrite
+  rejection and DC-free low-pass visualization masks.
+- A synthetic 384→96 preparation completed; common physical shells1–16 matched
+  to relative error below6e-16 before float32 storage. A three-update width8
+  training smoke and eight fixed64 samples completed with finite reports,
+  two saved generated fields and both visualization artifacts.
+- Launcher shell syntax/Python compilation pass. Execution without an explicit
+  funded account, or with a different submitted account, fails before module
+  loading/training. No job was submitted and no GPU allocation was used locally.
+- Real source preparation,5,000-update CUDA execution, actual resource footprint
+  and scientific low-k recovery remain to be checked on Perlmutter. This is a
+  new coarse single-resolution task, not a validated pyramid or a pure
+  resolution-only architectural attribution.
