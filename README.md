@@ -285,3 +285,8 @@ into a 96-square whole-domain dataset without reading test data. Review its
 preparation report before submitting the one-seed `scripts/coarse_pilot.slurm`.
 The [experiment plan](EXPERIMENTS.md#budgeted-coarse-whole-domain-pilot-low-k-focus)
 describes filter conventions, common-shell comparisons and the GPU spending cap.
+
+After reviewing the coarse pilot, `scripts/replicate_coarse.slurm` repeats seeds
+43 and 44 sequentially within one capped allocation. `collect_coarse.py` combines
+them with the existing seed-42 result; see the experiment plan for budget and
+comparison checks.

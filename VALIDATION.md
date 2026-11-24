@@ -120,3 +120,13 @@ Budgeted coarse-pilot implementation validation:
   and scientific low-k recovery remain to be checked on Perlmutter. This is a
   new coarse single-resolution task, not a validated pyramid or a pure
   resolution-only architectural attribution.
+
+Coarse replication launcher validation:
+
+- Fifty-six tests pass. The new dry-run test checks the two-seed sequential,
+  one-GPU,15-minute TOTAL budget plan. Collector tests verify complete matched
+  three-seed aggregation and refusal of mismatched manifests/incomplete outputs.
+- Shell syntax and Python compilation pass. Missing/mismatched account checks
+  fail before module loading or GPU work. No actual GPU job was submitted here.
+- The launcher reuses the previously verified training/evaluation settings; real
+  seed43/44 outcomes and total job runtime remain to be measured on Perlmutter.

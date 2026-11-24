@@ -303,8 +303,8 @@ not advance the parent state. It is still randomly initialized, not trained in
 advance or manually fitted to validation data. Old checkpoints load with the
 implicit default.
 
-The six-task array maps 0/1 to implicit/learned seed 42, 2/3 to seed43, 4/5 to
-seed44. Every run uses width 32, GroupNorm, circular padding, full 384-square planes,
+The six-task array maps 0/1 to implicit/learned seed 42, 2/3 to seed 43, 4/5 to
+seed 44. Every run uses width 32, GroupNorm, circular padding, full 384-square planes,
 batch 8, 5,000 updates, AdamW at 1e-4 and checkpointing every 1,000 updates. Standard
 diagnostics remain ten arms × four generation seeds, with eight probe batches.
 Fixed Euler64 is the primary comparison. Test data remain untouched.
@@ -443,3 +443,56 @@ Decision: if first-shell recovery improves, follow with a budgeted replication
 before investigating refinement that preserves those modes. If it stays poor,
 inspect the coarse optimization and representation before adding stages or a
 spectral loss. Keep mean distribution/k=0 separate from these nonzero modes.
+
+## Coarse pilot replication within one capped allocation
+
+After reviewing the seed-42 pilot, repeat ONLY training seeds 43 and 44, preserving
+prepared 96 data, width 32, GroupNorm, circular padding, implicit means, 5,000
+updates, batch 8, AdamW at 1e-4 and eight fixed-Euler64 generation seeds 4242–4249.
+The existing seed 42 result is reused rather than retrained.
+
+```bash
+export PYTHON_BIN="$PWD/.venv/bin/python3"
+export GPU_ACCOUNT=YOUR_AUTHORIZED_GPU_ACCOUNT
+export COARSE_DATA="$PWD/runs/pilot/coarse96-data"
+# Select an eligible QOS explicitly; use shared_overrun only if eligible.
+sbatch --account="$GPU_ACCOUNT" --qos=shared_overrun \
+  --time=00:15:00 --time-min=00:15:00 --export=ALL scripts/replicate_coarse.slurm
+```
+
+This is ONE job, NOT an array. It trains/evaluates seed 43, then seed 44, on one
+GPU under a shared 15-minute hard wall limit. Total maximum resource use for BOTH
+runs is 0.25 GPU-hours, estimated 0.0625 standard shared GPU-node-hours. Actual
+allocation charges depend on QOS and footprint; overrun has zero allocation
+charge. The root budget.json applies to the entire job and must not be counted
+once per training seed. No automatic retries, extra seeds or refinement training
+are launched. Failure stops the script and preserves partial outputs.
+
+Outputs go to runs/coarse-replicate-JOBID/seed-43 and seed-44, leaving the seed 42
+pilot untouched. The script verifies the explicit/submitted accounts match,
+checks prepared-data provenance, rejects existing replication directories and
+records environment, source commit and starting Slurm job details (including
+actual QOS). Get actual elapsed/AllocTRES afterward for resource accounting.
+
+After successful completion, combine with the existing pilot:
+
+```bash
+python3 collect_coarse.py --pilot runs/coarse-pilot-PILOT_JOBID \
+  --replication runs/coarse-replicate-REPEAT_JOBID
+```
+
+The collector requires all three training seeds, identical coarse manifest,
+model/training settings, fixed 64-step sampling and matched generation seeds. It
+recomputes first-shell and shells 1–4 recovery plus relative L1 over COMMON
+physical shells 1–16, retaining separate generated component means and their
+spread. It refuses mixed references or incomplete runs. Ranges over three
+training seeds are descriptive, not confidence intervals; eight generation
+seeds per model are not additional independent training replicates.
+
+Bring back coarse-replication-summary.json/md, each repeated training.json and
+eval directory, and root budget.json/slurm-job-start.txt. If low-k recovery
+repeats, discuss a refinement experiment that preserves coarse modes. If it
+fails, investigate the seed dependence first. Successful coarse generation
+still does not establish correct mean distributions, a working pyramid, or a
+pure effect of resolution: receptive field, pixel exposure and gridwise-noise
+Fourier amplitudes change with resolution.
