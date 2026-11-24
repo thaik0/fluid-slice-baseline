@@ -130,3 +130,21 @@ Coarse replication launcher validation:
   fail before module loading or GPU work. No actual GPU job was submitted here.
 - The launcher reuses the previously verified training/evaluation settings; real
   seed43/44 outcomes and total job runtime remain to be measured on Perlmutter.
+
+Real-coarse conditional refinement validation:
+
+- All59 tests pass, including analytic amplitude/phase/DC preservation,
+  Fourier interpolation/decimation round trips, projector orthogonality and
+  differentiability, forced low-mode removal during sampling even for an
+  intentionally unsuitable velocity model, conditioning-shape errors, and an
+  end-to-end synthetic train/evaluate run. Fine source tampering is rejected;
+  the tests run without a reserved test array.
+- A separate384→96 synthetic run completed CPU geometry checks, two width4
+  training updates and fixedEuler sampling. Maximum stored-context error was
+  below5e-8 dataset units; roundtrip/decomposition errors were below7e-16;
+  normalized low-mode sampling error was below3e-7. These establish numerical
+  geometry and execution only, not learned turbulence quality.
+- Launcher shell syntax and Python compilation pass. One GPU, one seed,
+  15-minute total cap; no automatic retries. No GPU job was submitted locally.
+  CUDA runtime/memory at width32/batch8, convergence after5,000 updates, and
+  scientific residual quality remain unverified until the remote pilot runs.

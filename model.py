@@ -13,14 +13,17 @@ class Block(nn.Module):
 
 
 class FlowNet(nn.Module):
-    def __init__(self, channels=3, width=32, normalization="group", padding="zeros", mean_mode="implicit"):
+    def __init__(self, channels=3, width=32, normalization="group", padding="zeros", mean_mode="implicit", context_channels=0):
         super().__init__()
         if mean_mode not in ["implicit","learned"]: raise ValueError("Unknown mean mode")
         self.mean_mode = mean_mode
+        self.context_channels = context_channels
+        if context_channels < 0 or (context_channels and mean_mode != "implicit"):
+            raise ValueError("Conditional input requires implicit mean mode")
         if normalization not in ['group','none'] or padding not in ['zeros','circular']:
             raise ValueError('Unknown normalization or padding')
         if width % 4: raise ValueError('width must be divisible by four')
-        self.a = Block(channels+1,width,normalization,padding)
+        self.a = Block(channels+1+context_channels,width,normalization,padding)
         self.b = Block(width,2*width,normalization,padding)
         self.c = Block(2*width,4*width,normalization,padding)
         self.d = Block(6*width,2*width,normalization,padding)
@@ -31,10 +34,17 @@ class FlowNet(nn.Module):
             # training noise/time draws match the implicit-mean control.
             with torch.random.fork_rng(devices=[]):
                 self.mean_head = nn.Sequential(nn.Linear(channels+1,64),nn.SiLU(),nn.Linear(64,64),nn.SiLU(),nn.Linear(64,channels))
-    def forward(self,x,t):
+    def forward(self,x,t,context=None):
         t = torch.as_tensor(t,device=x.device,dtype=x.dtype).reshape(-1,1,1,1)
         t = t.expand(x.shape[0],1,*x.shape[-2:])
-        a = self.a(torch.cat([x,t],1)); b = self.b(F.avg_pool2d(a,2)); c = self.c(F.avg_pool2d(b,2))
+        inputs = [x,t]
+        if self.context_channels:
+            if context is None or context.shape != (x.shape[0],self.context_channels,*x.shape[-2:]):
+                raise ValueError("Missing or incompatible conditioning field")
+            inputs.append(context)
+        elif context is not None:
+            raise ValueError("Model has no conditioning channels")
+        a = self.a(torch.cat(inputs,1)); b = self.b(F.avg_pool2d(a,2)); c = self.c(F.avg_pool2d(b,2))
         d = self.d(torch.cat([F.interpolate(c,size=b.shape[-2:],mode='nearest'),b],1))
         spatial = self.out(self.e(torch.cat([F.interpolate(d,size=a.shape[-2:],mode='nearest'),a],1)))
         if self.mean_mode == 'implicit': return spatial

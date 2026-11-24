@@ -290,3 +290,9 @@ After reviewing the coarse pilot, `scripts/replicate_coarse.slurm` repeats seeds
 43 and 44 sequentially within one capped allocation. `collect_coarse.py` combines
 them with the existing seed-42 result; see the experiment plan for budget and
 comparison checks.
+
+For the next isolated coarse-to-fine experiment, see **Real-coarse conditional
+residual refinement** in [EXPERIMENTS.md](EXPERIMENTS.md). Start with the CPU
+geometry/provenance check; the optional single GPU pilot is capped at15 minutes.
+Supplied coarse modes are preserved exactly up to numerical precision, so only
+residual quality is learned and evaluated at this stage.

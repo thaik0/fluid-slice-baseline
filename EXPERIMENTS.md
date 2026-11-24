@@ -496,3 +496,79 @@ fails, investigate the seed dependence first. Successful coarse generation
 still does not establish correct mean distributions, a working pyramid, or a
 pure effect of resolution: receptive field, pixel exposure and gridwise-noise
 Fourier amplitudes change with resolution.
+
+## Next isolated test: real-coarse conditional residual refinement
+
+The 96-square result replicated across training seeds42–44: first-shell energy
+was60.6–71.4% of real, and common-shell1–16 spectrum relative L1 was0.217–0.233
+with eight generation seeds. This motivates testing a second stage, while the
+coarse model's mean bias and first-shell deficit remain unresolved.
+
+`refinement.py` starts with a strict radial low-pass projector P retaining
+integer |k|<48, including DC. In the original fine training normalization,
+context c=P(x), target residual r=(I−P)x and initial residual noise
+z=(I−P)epsilon. The conditional FlowNet receives residual state, time and c.
+Training minimizes ordinary velocity MSE for (I−P)model against r−z on the
+linear flow path. Every Euler update is projected back into the residual
+subspace. Final output is c+residual. Circular padding is used on whole384
+planes; no crops, shifts, learned mean branch or spectrum penalty are added.
+
+This is a staged conditional flow experiment, not a reproduction of the original
+3D pyramidal method. Real validation coarse fields are supplied at evaluation.
+Low-mode/mean agreement is inherited by construction and is not a success metric
+for generation. Evaluate residual energy, residual spectrum relative L1, and the
+fine high band (shell>=96), using the same eight validation contexts for real
+and generated statistics. Samples are stochastic conditional realizations,
+not paired reconstructions; pixel error is not a quality criterion. Keep the
+provisional temporal-split limitation and single-training-seed scope explicit.
+
+CPU preflight verifies fine/coarse provenance and array hashes, physical box,
+aligned Fourier interpolation, DC, round trips and residual orthogonality on
+first/middle/last train and validation planes. It does not read test data.
+Run on the Perlmutter login node before requesting a GPU:
+
+```bash
+cd ~/fluid-slice-baseline
+git pull
+module load pytorch/2.6.0
+source .venv/bin/activate
+export FINE_DATA="$PWD/runs/pilot/data"
+export COARSE_DATA="$PWD/runs/pilot/coarse96-data"
+python3 refinement.py check --data "$FINE_DATA" --coarse "$COARSE_DATA" --out runs/pilot/refinement-check.json
+```
+
+Then submit **one** pilot with an explicit permitted account/QoS. For the
+previously working overrun route:
+
+```bash
+export GPU_ACCOUNT=m5401_g
+sbatch --account="$GPU_ACCOUNT" --qos=shared_overrun --time-min=00:15:00 --export=ALL scripts/refinement_pilot.slurm
+```
+
+The launcher requests one GPU and15 minutes total (at most0.25 GPU-hours;
+standard shared quarter-node estimate0.0625 node-hours), covering5,000 updates
+and eight fixedEuler64 samples. It records account, submitted job settings,
+source commit and environment, requires the matching CPU check, rejects reused
+outputs, and never retries. This is a resource cap, not a measured CUDA runtime
+guarantee. Periodic checkpoints/partial loss reports survive a time limit;
+inspect them before authorizing any additional allocation.
+
+Results: `runs/refinement-pilot-JOBID/train/{training.json,geometry-check.json}`
+and `eval/{evaluation.json,summary.md,comparison.png,residual-spectrum.png}`.
+Package reports without checkpoints or fields:
+
+```bash
+tar -czf refinement-pilot-JOBID-reports.tgz \
+  runs/refinement-pilot-JOBID/budget.json \
+  runs/refinement-pilot-JOBID/train/training.json \
+  runs/refinement-pilot-JOBID/train/geometry-check.json \
+  runs/refinement-pilot-JOBID/eval/evaluation.json \
+  runs/refinement-pilot-JOBID/eval/summary.md \
+  runs/refinement-pilot-JOBID/eval/comparison.png \
+  runs/refinement-pilot-JOBID/eval/residual-spectrum.png
+```
+
+Decision: inspect the oracle-context residual spectrum and visual artifacts
+before using generated coarse fields. A refiner that preserves coarse modes
+will inherit the generator's low-mode deficit/mean bias; it cannot fix them.
+Do not launch a multi-seed sweep or full pipeline from this pilot automatically.
