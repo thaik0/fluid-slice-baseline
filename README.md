@@ -296,3 +296,7 @@ residual refinement** in [EXPERIMENTS.md](EXPERIMENTS.md). Start with the CPU
 geometry/provenance check; the optional single GPU pilot is capped at15 minutes.
 Supplied coarse modes are preserved exactly up to numerical precision, so only
 residual quality is learned and evaluated at this stage.
+
+The saved refinement checkpoints can be compared without new training using
+`compare_refinement.py`; see the evaluation-only checkpoint/sampler workflow in
+[EXPERIMENTS.md](EXPERIMENTS.md). Its single GPU job has a five-minute total cap.

@@ -572,3 +572,76 @@ Decision: inspect the oracle-context residual spectrum and visual artifacts
 before using generated coarse fields. A refiner that preserves coarse modes
 will inherit the generator's low-mode deficit/mean bias; it cannot fix them.
 Do not launch a multi-seed sweep or full pipeline from this pilot automatically.
+
+## Evaluation-only refinement checkpoint/sampler comparison
+
+Pilot61927554 completed5,000 updates in508.7 training seconds. With eight real
+coarse validation contexts, residual energy was0.579 of real and residual
+spectrum relative L1 was0.439. Shell-band ratios48–63,64–95,96–143,144–272 were
+0.554,0.584,0.665,3.517. Maximum normalized coarse-mode error was2.4e-6.
+The reference residual represented only0.339% of the matched full fluctuation
+energy: visually similar full fields cannot establish learned detail quality.
+The coarse generator's first-shell/mean errors remain a separate priority.
+
+Before more training, `compare_refinement.py` evaluates existing checkpoints
+at updates1,000/3,000/5,000 with fixedEuler64/128. All six arms use eight identical
+validation indices and Gaussian noise seeds4242–4249. No optimizer is created;
+no training or test data selection occurs. Real coarse context is supplied.
+Reports separate residual energy, residual spectrum relative L1 and the four
+bands above. This is a one-training-seed diagnostic, not a replication study or
+a proof of conditional diversity/context use.
+
+On the login node, preflight verifies all three checkpoint update numbers,
+source/configuration compatibility, data provenance and filtering geometry.
+Missing checkpoints stop the workflow; do not retrain to replace them.
+
+```bash
+cd ~/fluid-slice-baseline
+git pull
+module load pytorch/2.6.0
+source .venv/bin/activate
+export FINE_DATA="$PWD/runs/pilot/data"
+export COARSE_DATA="$PWD/runs/pilot/coarse96-data"
+export REFINEMENT_SOURCE_RUN="$PWD/runs/refinement-pilot-61927554"
+python3 compare_refinement.py preflight \
+  --data "$FINE_DATA" --coarse "$COARSE_DATA" \
+  --run "$REFINEMENT_SOURCE_RUN" \
+  --out runs/pilot/refinement-compare-check.json
+```
+
+After a successful check, the previously used overrun route is:
+
+```bash
+export GPU_ACCOUNT=m5401_g
+sbatch --account="$GPU_ACCOUNT" --qos=shared_overrun \
+  --time-min=00:05:00 --export=ALL scripts/refinement_compare.slurm
+```
+
+One GPU allocation, five minutes TOTAL, maximum0.0833 GPU-hours; estimated
+standard shared quarter-node equivalent0.0208 node-hours. Actual wall usage and
+charges require scheduler accounting. The launcher records budget, environment,
+source commit and submitted job settings, verifies the CPU preflight and
+checkpoint hashes, rejects reused outputs, and has no retries. A time limit
+leaves completed arm reports/progress intact; do not resubmit automatically.
+A five-minute runtime is a cap, not a CUDA runtime guarantee.
+
+Outputs: `runs/refinement-compare-JOBID/reports/comparison.json`, `summary.md`,
+`comparison.png` and six arm directories containing their detailed evaluations.
+To return the reports (replace JOBID):
+
+```bash
+tar -czf refinement-compare-JOBID-reports.tgz \
+  runs/refinement-compare-JOBID/budget.json \
+  runs/refinement-compare-JOBID/reports/plan.json \
+  runs/refinement-compare-JOBID/reports/comparison.json \
+  runs/refinement-compare-JOBID/reports/summary.md \
+  runs/refinement-compare-JOBID/reports/comparison.png \
+  runs/refinement-compare-JOBID/reports/update-*/evaluation.json
+```
+
+Interpretation: a substantial64→128 change indicates remaining integration
+sensitivity; agreement reduces that concern but does not prove convergence.
+Improvement from1,000→5,000 updates suggests training progress, without proving
+that further training will help. Stable mismatches across both axes motivate
+checking residual representation/context use before any new training sweep.
+No arm is automatically selected and no downstream job is submitted.

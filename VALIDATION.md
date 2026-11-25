@@ -148,3 +148,18 @@ Real-coarse conditional refinement validation:
   15-minute total cap; no automatic retries. No GPU job was submitted locally.
   CUDA runtime/memory at width32/batch8, convergence after5,000 updates, and
   scientific residual quality remain unverified until the remote pilot runs.
+
+Evaluation-only refinement comparison validation:
+
+- All62 tests pass. A six-arm synthetic comparison executes the same evaluation
+  entry point on saved weights with short CPU sampling paths. Checkpoint hashes
+  are unchanged afterward; no test array is present or opened.
+- Aggregation tests reject incomplete arms, mismatched context/noise pairing
+  and coarse-mode preservation failures; analytic fixture spectra verify band
+  ratios and paired sampler-change calculations. Preflight rejects checkpoints
+  from a different training configuration. Launcher tests verify the one-GPU,
+  five-minute evaluation-only plan and account mismatch failure before work.
+- Shell syntax, Python compilation and whitespace checks pass. No GPU job was
+  submitted locally. The real1,000/3,000/5,000-checkpoint comparison and64/128-step
+  CUDA results remain to be measured remotely; the five-minute cap is not a
+  measured total runtime guarantee.
