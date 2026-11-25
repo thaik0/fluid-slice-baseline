@@ -300,3 +300,8 @@ residual quality is learned and evaluated at this stage.
 The saved refinement checkpoints can be compared without new training using
 `compare_refinement.py`; see the evaluation-only checkpoint/sampler workflow in
 [EXPERIMENTS.md](EXPERIMENTS.md). Its single GPU job has a five-minute total cap.
+
+To check the saved3,000-update refiner on32 additional validation planes and an
+8-context matched conditioning ablation, use `confirm_refinement.py`; the CPU
+preflight and capped five-minute evaluation job are documented in
+[EXPERIMENTS.md](EXPERIMENTS.md). This uses real coarse context and no new training.

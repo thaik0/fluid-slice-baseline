@@ -163,3 +163,23 @@ Evaluation-only refinement comparison validation:
   submitted locally. The real1,000/3,000/5,000-checkpoint comparison and64/128-step
   CUDA results remain to be measured remotely; the five-minute cap is not a
   measured total runtime guarantee.
+
+Fresh-context/conditioning confirmation validation:
+
+- All66 tests pass. Selection tests exclude prior generated contexts and fixed
+  validation-loss planes; verify32 distinct indices, reproducibility, and an
+  eight-member derangement with different snapshot groups for the128-plane
+  dataset layout. Too few eligible contexts is rejected.
+- Analytic context-sensitive and context-ignoring models verify that the paired
+  sampler changes only network conditioning while preserving original low modes
+  and shared noise. The context-ignoring control produces exactly equal outputs.
+- An end-to-end small-grid confirmation evaluates saved weights on fresh planes,
+  verifies matched-subset reference spectra and low-mode preservation, leaves
+  checkpoint hashes unchanged, runs without a reserved test array, and rejects
+  a checkpoint with the wrong update number. These validate execution and
+  bookkeeping, not real-data conditional generation quality.
+- The launcher dry run verifies one saved3,000-update checkpoint, Euler64,
+  32 correct plus8 shuffled samples, one GPU and five minutes total. Account
+  mismatch fails before module loading/work. Shell syntax, Python compilation
+  and whitespace checks pass. No GPU job was submitted locally; real CUDA
+  runtime, fresh-context quality and conditioning effects remain unmeasured.

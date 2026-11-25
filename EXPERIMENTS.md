@@ -645,3 +645,86 @@ Improvement from1,000→5,000 updates suggests training progress, without provin
 that further training will help. Stable mismatches across both axes motivate
 checking residual representation/context use before any new training sweep.
 No arm is automatically selected and no downstream job is submitted.
+
+## Fresh-context confirmation and conditioning check (evaluation only)
+
+The saved-checkpoint comparison61986835 found3,000 updates better than1,000 or
+5,000 for residual spectra on the eight matched contexts. At3,000 updates,
+Euler64/128 residual energy ratios were0.839/0.866 and relative spectral L1
+errors0.176/0.156. Doubling sampling steps modestly improved overall error but
+increased the finest-band excess3.13→3.96. This is selection on validation,
+not evidence of generalization or a justification for more training.
+
+`confirm_refinement.py` freezes checkpoint-3000.pt and Euler64. It selects32
+additional validation plane indices spread across the remaining eligible set,
+excluding the prior eight generated-context indices and the first eight planes
+used by the fixed training-time validation-loss probe. Noise seeds6242–6273
+replace4242–4249. These are new planes/noises within the same provisional split,
+not independent snapshots, a new training seed, or reserved test evaluation.
+The plan includes time, slice and snapshot-group labels for each context.
+
+Eight contexts from the32 receive an extra matched evaluation with the context
+input permuted cyclically by half the subset. Output coarse carrier and initial
+noise remain identical in each pair. Only the context passed to the network
+changes; the coarse carrier remains the original real field, so the comparison
+cannot be explained by a trivial change in the output's large structures.
+The report keeps all32 results separate from the matched-eight correct/shuffled
+comparison, retaining per-context spectra and physical residual response RMS.
+A teacher-forced t=.5 probe uses the same residual/noise state and target
+velocity with correct versus shuffled conditioning. A response establishes
+sensitivity; a lower correct-context prediction error is supporting evidence of
+context usefulness at that state. Neither proves conditional distribution
+fidelity or end-to-end generated-coarse performance. Aggregate spectrum
+agreement alone cannot show that the model uses conditioning usefully.
+
+Run the CPU data/checkpoint/geometry preflight before requesting a GPU:
+
+```bash
+cd ~/fluid-slice-baseline
+git pull
+module load pytorch/2.6.0
+source .venv/bin/activate
+export FINE_DATA="$PWD/runs/pilot/data"
+export COARSE_DATA="$PWD/runs/pilot/coarse96-data"
+export REFINEMENT_SOURCE_RUN="$PWD/runs/refinement-pilot-61927554"
+python3 confirm_refinement.py preflight \
+  --data "$FINE_DATA" --coarse "$COARSE_DATA" \
+  --run "$REFINEMENT_SOURCE_RUN" \
+  --out runs/pilot/refinement-confirm-check.json
+```
+
+After preflight passes, the previously working account/QoS route is:
+
+```bash
+export GPU_ACCOUNT=m5401_g
+sbatch --account="$GPU_ACCOUNT" --qos=shared_overrun \
+  --time-min=00:05:00 --export=ALL scripts/refinement_confirm.slurm
+```
+
+One GPU, five minutes TOTAL, maximum0.0833 GPU-hours, standard shared quarter-node
+estimate0.0208 node-hours. It covers32 correctly conditioned samples plus eight
+matched shuffled-conditioning samples and their teacher-forced probes. No
+training, arrays of jobs, retries, or automatic downstream submissions. Actual
+job wall time/charges require scheduler accounting. A cap is not a measured
+runtime guarantee. Missing checkpoint/stale preflight/account mismatch stop the
+workflow. Partial per-context results survive an interrupted evaluation.
+
+Outputs: `runs/refinement-confirm-JOBID/reports/{confirmation.json,summary.md,
+spectra.png,conditioning.png,plan.json}` plus top-level budget/provenance.
+Return the compact report bundle (replace JOBID):
+
+```bash
+tar -czf refinement-confirm-JOBID-reports.tgz \
+  runs/refinement-confirm-JOBID/budget.json \
+  runs/refinement-confirm-JOBID/reports/plan.json \
+  runs/refinement-confirm-JOBID/reports/confirmation.json \
+  runs/refinement-confirm-JOBID/reports/summary.md \
+  runs/refinement-confirm-JOBID/reports/spectra.png \
+  runs/refinement-confirm-JOBID/reports/conditioning.png
+```
+
+Inspect fresh residual quality, band-specific excess/deficits, and the matched
+conditioning response/probe before deciding on generated coarse context. No
+threshold is retrospectively declared a pass, no extra training is authorized
+by this script, and a positive confirmation cannot remove the coarse model's
+first-shell and mean biases.
